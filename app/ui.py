@@ -309,9 +309,14 @@ class HospitalApp:
             return
         if not messagebox.askyesno("Confirm deletion", "Delete the selected record? Related appointments may also be removed."):
             return
-        table = {"Patients": "patients", "Doctors": "doctors", "Appointments": "appointments"}.get(self.page_title.cget("text"))
-        if table:
-            self.db.execute(f"DELETE FROM {table} WHERE id=?", (int(selected[0]),)).close()
+        delete_queries = {
+            "Patients": "DELETE FROM patients WHERE id=?",
+            "Doctors": "DELETE FROM doctors WHERE id=?",
+            "Appointments": "DELETE FROM appointments WHERE id=?",
+        }
+        query = delete_queries.get(self.page_title.cget("text"))
+        if query:
+            self.db.execute(query, (int(selected[0]),)).close()
             self._refresh_current_page()
 
     def _refresh_current_page(self):
