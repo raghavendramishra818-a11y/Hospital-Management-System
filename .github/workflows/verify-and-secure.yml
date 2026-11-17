@@ -1,0 +1,61 @@
+name: Verify and Security Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Security best practice: restrict token to read-only access
+permissions:
+  contents: read
+
+jobs:
+  verify-and-secure:
+    name: Test & Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: 2. Check for accidental secret or database files
+        run: |
+          if [ -f ".env" ]; then
+            echo "ERROR: .env file found! Remove it so passwords are not leaked."
+            exit 1
+          fi
+          if find . -name "*.db" | grep -q .; then
+            echo "ERROR: Local .db database file found in repository!"
+            exit 1
+          fi
+          echo "Clean: No .env or .db files exposed."
+
+      - name: 3. Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: 4. Install project dependencies & security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit pip-audit
+
+      - name: 5. Verify Python syntax
+        run: |
+          python -m compileall app tests main.py
+
+      - name: 6. Run automated database tests
+        run: |
+          python -m unittest discover -s tests -v
+
+      - name: 7. Scan dependencies for known security vulnerabilities
+        run: |
+          pip-audit -r requirements.txt
+
+      - name: 8. Scan Python code for security issues
+        run: |
+          bandit -r app main.py -ii
